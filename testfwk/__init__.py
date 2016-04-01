@@ -22,18 +22,18 @@ import os
 
 from pathlib import Path
 
-from oztoolz.streams import FileOutStream
-from oztoolz.streams.errors import EFailedToInitialize
+from ..streams import FileOutStream
+from ..streams.errors import EFailedToInitialize
 
-from oztoolz.ioutils import get_current_package_path
-from oztoolz.ioutils import select_all_scripts
+from ..ioutils import get_current_package_path
+from ..ioutils import select_all_scripts
 
 from .codereview import get_default_reviewer
 from .errors import EFileDoesntExist
 from .errors import EFailedToReview
 
-from oztoolz.streams.aligners import CenterAligner as Title
-from oztoolz.streams.aligners import RightAligner as Tab
+from ..streams.aligners import CenterAligner as Title
+from ..streams.aligners import RightAligner as Tab
 
 
 __all__ = ['review_code_and_report', 'review_current_package']

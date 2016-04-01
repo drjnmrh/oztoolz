@@ -26,8 +26,8 @@ from .errors import EUnknown
 from .errors import EFileDoesntExist
 from .errors import EFailedToReview
 
-from oztoolz.streams.aligners import CenterAligner as Center
-from oztoolz.streams.aligners import RightAligner as Right
+from ..streams.aligners import CenterAligner as Center
+from ..streams.aligners import RightAligner as Right
 
 
 # classes
