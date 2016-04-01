@@ -1,0 +1,4 @@
+This is a simple text.
+  This line has an indent.
+
+This line is separated from others by a newline.
