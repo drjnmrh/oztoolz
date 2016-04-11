@@ -13,7 +13,7 @@ from .errors import EFileDoesntExist
 from .errors import EFailedToInitialize
 from .errors import EFailedToWriteToFile
 
-from oztoolz.ioutils import safe_write as write
+from ..ioutils import safe_write as write
 
 
 # globals
