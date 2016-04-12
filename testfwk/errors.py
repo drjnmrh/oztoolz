@@ -43,6 +43,16 @@ class EFailedToReview(EUnknown):
                          ".")
 
 
+class ENoSuchChild(EUnknown):
+    """An exception, which is raised when there's an attempt to access
+    non-existing child.
+    """
+
+    def __init__(self, child_name):
+        super().__init__("testfwk.ENoSuchChild error: " + child_name +
+                         "doesn't exist.")
+
+
 # testing
 
 
