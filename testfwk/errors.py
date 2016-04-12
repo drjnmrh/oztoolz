@@ -52,6 +52,13 @@ class ENoSuchChild(EUnknown):
         super().__init__("testfwk.ENoSuchChild error: " + child_name +
                          "doesn't exist.")
 
+class EFailedToInit(EUnknown):
+    """An exception, which is raised if failed to initialize a complex class.
+    """
+
+    def __init__(self, reason_string):
+        super().__init__("testfwk.EFailedToInit error: " + reason_string + ".")
+
 
 # testing
 
