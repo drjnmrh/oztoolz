@@ -13,7 +13,8 @@ import sys
 from pathlib import Path
 
 
-__all__ = ['get_current_package_path',
+__all__ = ['extract_file_name',
+           'get_current_package_path',
            'select_all_scripts',
            'safe_write',
            'safe_write_log']
@@ -21,6 +22,31 @@ __all__ = ['get_current_package_path',
 
 # methods
 
+
+def extract_file_name(file_path, error_stream=sys.stderr):
+    """Tries to extract a file name from the given path string.
+
+    Args:
+        file_path: a path string to get the file name from.
+        error_stream: a stream to write error messages to.
+    Returns:
+        a string, containing file name if succeeded, an empty string
+        otherwise.
+    Raises:
+        nothing.
+    """
+    try:
+        file_object = Path(file_path)
+        if not file_object.is_file():
+            safe_write(error_stream, "ioutils.extract_file_name error: " +
+                       file_path + " is not a file")
+            return ""
+
+        return str(file_object.relative_to(str(file_object.parent)))
+    except (OSError, ValueError) as err:
+        safe_write(error_stream, "ioutils.extract_file_name error: " +
+                   str(err))
+    return ""
 
 def get_current_package_path(error_stream=sys.stderr):
     """Tries to get current executed scripts package path.
