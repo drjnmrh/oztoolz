@@ -18,6 +18,7 @@ from subprocess import PIPE
 from subprocess import SubprocessError
 
 from .errors import EFailedToInit
+from .errors import EFailedToTest
 from .errors import EFileDoesntExist
 from .errors import ENoSuchChild
 from .errors import EUnknown
@@ -28,6 +29,8 @@ from oztoolz.ioutils import safe_write
 
 from oztoolz.streams import FileOutStream
 from oztoolz.streams.errors import EFailedToInitialize as EFailedToInitStream
+from oztoolz.streams.aligners import CenterAligner as Title
+from oztoolz.streams.aligners import RightAligner as Tab
 
 
 # API
@@ -37,7 +40,7 @@ def has_module_tests(module_path, error_stream=sys.stderr):
     """Checks if given python module has a unit tests module.
 
     The unit tests module is a module with the specific name: the name of the
-    parent (which is tested) plus _tests suffix.
+    parent (which is tested) plus .tests suffix.
 
     Args:
         module_path: a string, containing the path to the module to check.
@@ -57,7 +60,7 @@ def has_module_tests(module_path, error_stream=sys.stderr):
 
         module_name = module_name[:-len(module.suffix)]
 
-        tests_module = module.parent / (module_name + '_tests.py')
+        tests_module = module.parent / (module_name + '.tests.py')
         return tests_module.exists()
     except (OSError, ValueError) as err:
         safe_write(error_stream, "testfwk.utesting.has_module_tests error: " +
@@ -65,7 +68,7 @@ def has_module_tests(module_path, error_stream=sys.stderr):
     return False
 
 def run_tests_for_module(module_path, reports_folder, error_stream=sys.stderr):
-    """Runs unit tests for the given module (if the module has *_tests script)
+    """Runs unit tests for the given module (if the module has *.tests script)
     and writes the report into the separate file.
 
     Args:
@@ -75,8 +78,11 @@ def run_tests_for_module(module_path, reports_folder, error_stream=sys.stderr):
     Returns:
         nothing.
     Raises:
-        nothing.
+        EFailedToTest, EFileDoesntExist.
     """
+    if not os.path.exists(module_path):
+        raise EFileDoesntExist(module_path)
+
     if not has_module_tests(module_path, error_stream):
         return
 
@@ -87,28 +93,51 @@ def run_tests_for_module(module_path, reports_folder, error_stream=sys.stderr):
         if not Path(reports_folder).exists():
             Path(reports_folder).mkdir(0o777, True, True)
 
-        report = Path(reports_folder) / (module_name + '_tests.txt')
+        report = Path(reports_folder) / (module_name + '.py_tests.txt')
         out_stream = FileOutStream(str(report))
 
-        tests_module = module.parent / (module_name + '_tests.py')
+        out_stream.append(Title("RUNNING TESTS FOR [" + module_name + "]"))
+
+        tests_module = module.parent / (module_name + '.tests.py')
+        if tests_module.exists():
+            out_stream.append(Tab("# found tests module [" +
+                                  str(tests_module) + "];"))
+        else:
+            out_stream.append(Tab("ERROR: can't find the tests module in [" +
+                                  str(tests_module) + "]!!!"))
+            raise EFailedToTest("couldn't find the tests module - " +
+                                str(tests_module))
 
         python_executable = sys.executable
         if python_executable is None:
             python_executable = 'python'
 
+        out_stream.append(Tab("# python executable is '" +
+                              python_executable + "';"))
+
+        out_stream.append("")
+
         with Popen([python_executable, str(tests_module)],
                    stdout=PIPE, stderr=PIPE) as proc:
+            out_stream.append("stdout:\n")
             for line in io.TextIOWrapper(proc.stdout, encoding="utf-8"):
+                out_stream.write(line)
+
+            out_stream.append("stderr:\n")
+            for line in io.TextIOWrapper(proc.stderr, encoding="utf-8"):
                 out_stream.write(line)
     except (OSError, ValueError) as err:
         safe_write(error_stream, "testfwk run_tests_for_module error: " +
                    str(err))
+        raise EFailedToTest("unexpected exception - " + str(err))
     except EFailedToInitStream as err:
         safe_write(error_stream, "testfwk run_tests_for_module error: " +
                    str(err))
+        raise EFailedToTest("couldn't open the stream - " + str(err))
     except SubprocessError:
         safe_write(error_stream, "testfwk run_tests_for_module error: " +
                    "failed to run the subprocess.")
+        raise EFailedToTest("failed to run the subprocess - " + str(err))
 
 
 class ResourceNode(object):

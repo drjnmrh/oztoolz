@@ -13,6 +13,13 @@
                                            all scripts, found in the folder
                                            of the package, which contains
                                            current executed script.
+
+        test_current_package             - runs unit tests for all scripts,
+                                           found in the folder of the package,
+                                           which contains current executed
+                                           script; tests are assumed to be
+                                           defined in the *.tests.py scripts
+                                           for each script to test to.
 """
 
 
@@ -29,8 +36,13 @@ from ..ioutils import get_current_package_path
 from ..ioutils import select_all_scripts
 
 from .codereview import get_default_reviewer
-from .errors import EFileDoesntExist
+
+from .utesting import has_module_tests
+from .utesting import run_tests_for_module
+
 from .errors import EFailedToReview
+from .errors import EFailedToTest
+from .errors import EFileDoesntExist
 
 from ..streams.aligners import CenterAligner as Title
 from ..streams.aligners import RightAligner as Tab
@@ -133,6 +145,64 @@ def review_current_package(out_stream):
         raise EFailedToReview("the source file is missing [" + str(err) + "]")
     except OSError as err:
         raise EFailedToReview("failed to get path [" + str(err) + "]")
+
+    out_stream.pop_aligner()
+    out_stream.append("finished :)")
+
+
+def test_current_package(out_stream):
+    """Runs unit tests (<script_name>.tests.py files) for all scripts in the
+    current package.
+
+    Writes report into the 'reports' folder inside the current package
+    directory. If the 'reports' folder doesn't exist, it will be created.
+
+    Args:
+        out_stream: a stream, to log to.
+    Returns:
+        nothing.
+    Raises:
+        EFailedToTest: if an error during testing occured.
+    """
+    out_stream.append(Title("Running unit tests for current package"))
+
+    package_path = get_current_package_path()
+    if package_path == '':
+        raise EFailedToTest("failed to get package path")
+
+    out_stream.append("# found package in [" + package_path + "];")
+
+    scripts = select_all_scripts(package_path)
+    if len(scripts) == 0:
+        raise EFailedToTest("failed to select scripts of the package")
+
+    try:
+        scripts_with_tests = []
+        for script in scripts:
+            script_path = os.path.join(package_path, script)
+            if has_module_tests(script_path):
+                scripts_with_tests.append(script)
+
+        out_stream.append("found tests for [" +
+                          str(len(scripts_with_tests)) + "] scripts:")
+        out_stream.push_aligner(Tab(""))
+
+        for script in scripts_with_tests:
+            try:
+                out_stream.append(script + "...")
+
+                script_full_path = os.path.join(package_path, script)
+                reports_full_path = os.path.join(package_path, "reports")
+
+                run_tests_for_module(script_full_path, reports_full_path)
+
+                out_stream.write("Ok;")
+            except EFileDoesntExist as err:
+                out_stream.write("Failed (" + str(err) + ");")
+            except EFailedToTest as err:
+                out_stream.write("Failed (" + str(err) + ");")
+    except (OSError, ValueError) as err:
+        raise EFailedToTest("failed to get the path - " + str(err))
 
     out_stream.pop_aligner()
     out_stream.append("finished :)")

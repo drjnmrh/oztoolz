@@ -18,11 +18,11 @@ if __name__ == '__main__':
     from oztoolz.testfwk.utesting import ResourceText
     from oztoolz.testfwk.utesting import ResourceManager
 else:
-    from ..ioutils import TemporaryFoldersManager
+    from ...ioutils import TemporaryFoldersManager
 
-    from .utesting import has_module_tests
-    from .utesting import ResourceText
-    from .utesting import ResourceManager
+    from . import has_module_tests
+    from . import ResourceText
+    from . import ResourceManager
 
 
 # test cases
@@ -46,7 +46,7 @@ class TestUTestingMethods(unittest.TestCase):
                 module_path = os.path.join(module['path'], module['name'])
                 temp_manager.track_file(module_path + '.py')
                 if module['has']:
-                    temp_manager.track_file(module_path + '_tests.py')
+                    temp_manager.track_file(module_path + '.tests.py')
 
             had_errors = False
             for module in modules:
