@@ -8,6 +8,7 @@
 
 import os
 import re
+import sys
 
 from pathlib import Path
 
@@ -18,9 +19,42 @@ from .errors import EUnknown
 
 from oztoolz.ioutils import compare_paths
 from oztoolz.ioutils import extract_file_name
+from oztoolz.ioutils import safe_write
 
 
 # API
+
+
+def has_module_tests(module_path, error_stream=sys.stderr):
+    """Checks if given python module has a unit tests module.
+
+    The unit tests module is a module with the specific name: the name of the
+    parent (which is tested) plus _tests suffix.
+
+    Args:
+        module_path: a string, containing the path to the module to check.
+        error_stream: a stream object to write error messages to.
+    Retruns:
+        True if the module has corresponding 'tests' module, False otherwise;
+        also can return False if an error occured.
+    Raises:
+        nothing.
+    """
+    try:
+        module = Path(module_path)
+
+        module_name = extract_file_name(module_path, error_stream)
+        if module_name == "":
+            return False
+
+        module_name = module_name[:-(len(module.suffix)+1)]
+
+        tests_module = module.parent / (module_name + '_tests.py')
+        return tests_module.exists()
+    except (OSError, ValueError) as err:
+        safe_write(error_stream, "testfwk.utesting.has_module_tests error: " +
+                   str(err) + ".\n")
+    return False
 
 
 class ResourceNode(object):
