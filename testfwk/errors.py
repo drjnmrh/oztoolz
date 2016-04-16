@@ -43,6 +43,15 @@ class EFailedToReview(EUnknown):
                          ".")
 
 
+class EFailedToTest(EUnknown):
+    """An exception, which is raised when an error occured when tried to run
+    unit tests.
+    """
+
+    def __init__(self, reason_string):
+        super().__init__("testfwk.EFailedToTest error: " + reason_string + ".")
+
+
 class ENoSuchChild(EUnknown):
     """An exception, which is raised when there's an attempt to access
     non-existing child.
