@@ -342,6 +342,38 @@ class TemporaryFile(object):
     def __exit__(self, exc_type, exc_value, traceback):
         self.cleanup()
 
+    @staticmethod
+    def from_path(file_path):
+        """Creates a temporary file, using the given full path.
+
+        Args:
+            file_path: a string, containing the full path to the temp file (or
+                       object with a __str__ method).
+        Returns:
+            a temporary file object.
+        Raises:
+            OSError, ValueError.
+        """
+        file_obj = Path(str(file_path))
+        return TemporaryFile(file_obj.parent,
+                             str(file_obj.relative_to(str(file_obj.parent))))
+
+    def fill(self, another_file_name):
+        """Copies the content of the specified file into the temporary file.
+
+        Args:
+            another_file_name: a string, containing the path to the file with
+                               a content.
+        Returns:
+            nothing.
+        Raises:
+            OSError, ValueError.
+        """
+        with open(another_file_name, "r") as another_file:
+            with open(self.__path, "w") as temp_file:
+                for line in another_file:
+                    temp_file.write(line)
+
     def cleanup(self):
         """Removes the temporary file.
 
