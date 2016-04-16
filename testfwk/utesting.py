@@ -47,7 +47,7 @@ def has_module_tests(module_path, error_stream=sys.stderr):
         if module_name == "":
             return False
 
-        module_name = module_name[:-(len(module.suffix)+1)]
+        module_name = module_name[:-len(module.suffix)]
 
         tests_module = module.parent / (module_name + '_tests.py')
         return tests_module.exists()

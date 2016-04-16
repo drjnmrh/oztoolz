@@ -7,22 +7,59 @@
 # imports
 
 
+import os
+import sys
 import unittest
 
 if __name__ == '__main__':
     from oztoolz.ioutils import TemporaryFoldersManager
 
+    from oztoolz.testfwk.utesting import has_module_tests
     from oztoolz.testfwk.utesting import ResourceText
     from oztoolz.testfwk.utesting import ResourceManager
 else:
     from ..ioutils import TemporaryFoldersManager
 
+    from .utesting import has_module_tests
     from .utesting import ResourceText
     from .utesting import ResourceManager
 
 
 # test cases
 
+
+class TestUTestingMethods(unittest.TestCase):
+    """Defines tests for the modules API methods
+    """
+
+    def test_has_module_tests(self):
+        """Tests the 'has_module_tests' method.
+        """
+        modules = [dict(name='simple', path='foo', has=True),
+                   dict(name='notests', path='foo', has=False),
+                   dict(name='simple_tests', path='foo', has=False),
+                   dict(name='another', path='foo/bar', has=True),
+                   dict(name='another_tests', path='foo/baz', has=False)]
+
+        with TemporaryFoldersManager() as temp_manager:
+            for module in modules:
+                module_path = os.path.join(module['path'], module['name'])
+                temp_manager.track_file(module_path + '.py')
+                if module['has']:
+                    temp_manager.track_file(module_path + '_tests.py')
+
+            had_errors = False
+            for module in modules:
+                module_path = os.path.join(module['path'],
+                                           (module['name'] + '.py'))
+                try:
+                    self.assertEqual(has_module_tests(module_path, sys.stdout),
+                                     module['has'])
+                except AssertionError:
+                    print('failed on: ' + module_path)
+                    had_errors = True
+
+            self.assertFalse(had_errors)
 
 class TestResourceText(unittest.TestCase):
     """Defines tests for the ResourceText class.
