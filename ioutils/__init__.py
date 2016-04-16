@@ -1,5 +1,5 @@
 """
-    Defines different IO utility methods.
+    Defines different IO utility methods and classes.
         Author: O.Z.
 """
 
@@ -13,18 +13,79 @@ import sys
 from pathlib import Path
 
 
-__all__ = ['extract_file_name',
+__all__ = ['compare_paths',
+           'is_subfolder',
+           'extract_file_name',
            'get_current_package_path',
            'select_all_scripts',
            'safe_write',
-           'safe_write_log']
+           'safe_write_log',
+           'TemporaryFolder',
+           'TemporaryFile',
+           'TemporaryDirectoryTree',
+           'TemporaryFoldersManager']
 
 
 # methods
 
 
+def compare_paths(first, second):
+    """Checks if two given paths are equal.
+
+    Paths can be non-existing.
+    Non-sensitive to the case.
+
+    Args:
+        first: a string (or object with overriden __str__ method), containing
+               the first path.
+        second: a string (or object with overriden __str__method), containing
+                the second path.
+    Returns:
+        True if paths are equal, False otherwise.
+    Raises:
+        nothing.
+    """
+    try:
+        abs_first = os.path.abspath(str(first))
+        abs_second = os.path.abspath(str(second))
+        return abs_first.upper() == abs_second.upper()
+    except (OSError, ValueError) as err:
+        safe_write(sys.stderr, "ioutils.compare_paths error: " + str(err))
+    return str(first).upper() == str(second).upper()
+
+
+def is_subfolder(subfolder_path, parent_path):
+    """Tries to check if given path is a subfolder of the given parent path.
+
+    Args:
+        subfolder_path: a string, which contains a path to check.
+        parent_path: the parent path string.
+    Returns:
+        True if the given path is a subfolder.
+    Raises:
+        OSError, ValueError.
+    """
+    subfolder_parents = list(Path(os.path.abspath(subfolder_path)).parents)
+
+    parent_parents = [Path(os.path.abspath(parent_path))]
+    parent_parents.extend(list(parent_parents[0].parents))
+
+    subfolder_parents.reverse()
+    parent_parents.reverse()
+
+    if len(subfolder_parents) < len(parent_parents):
+        return False
+
+    for i in range(0, len(parent_parents)):
+        if not compare_paths(parent_parents[i], subfolder_parents[i]):
+            return False
+
+    return True
+
 def extract_file_name(file_path, error_stream=sys.stderr):
     """Tries to extract a file name from the given path string.
+
+    The file should exist.
 
     Args:
         file_path: a path string to get the file name from.
@@ -187,6 +248,430 @@ def safe_write_log(log_file_name, logs_folder, string_buffer,
         return False
 
     return True
+
+
+# classes
+
+
+class TemporaryFolder(object):
+    """Temporary folder object, which manages (creates and removes) specified
+    by the path folder.
+
+    The object can be used only if the path specifies the folder inside
+    existing directory. The folder shouldn't exist before the object is
+    instantiated.
+    Doesn't require manager.
+
+    Attributes:
+        __path: a string, which contains path to the folder.
+        __folder: a pathlib.Path object for the folder.
+    """
+
+    def __init__(self, path):
+        self.__path = os.path.abspath(path)
+        self.__folder = Path(self.__path)
+
+        self.__folder.mkdir()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.cleanup()
+
+    def cleanup(self):
+        """Removes the temporary directory.
+
+        Returns:
+            nothing.
+        Raises:
+            nothing.
+        """
+        try:
+            self.__folder.rmdir()
+        except OSError as err:
+            safe_write(sys.stderr, "TemporaryFolder.cleanup error: " +
+                       str(err))
+
+    @property
+    def full_path(self):
+        """Gets the full path to the folder.
+
+        Returns:
+            string, which contains absolute full path to the folder.
+        Raises:
+            nothing.
+        """
+        return self.__path
+
+    @property
+    def folder(self):
+        """Gets a pathlib.Path object, related to the folder.
+
+        Returns:
+            a pathlib.Path object.
+        Raises:
+            nothing.
+        """
+        return self.__folder
+
+
+class TemporaryFile(object):
+    """Temporary file object, which manages its disk representation.
+
+    The file is created inside existing folder. The file shouldn't exist before
+    the object is instantiated.
+    Doesn't require manager.
+
+    Attributes:
+        __path: a string, which contains the path to the file.
+        __file: a pathlib.Path object for the file.
+        __name: a string, which contains the file name.
+    """
+
+    def __init__(self, folder, file_name):
+        self.__path = os.path.join(str(folder), file_name)
+        self.__file = Path(self.__path)
+        self.__name = file_name
+
+        self.__file.touch()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.cleanup()
+
+    def cleanup(self):
+        """Removes the temporary file.
+
+        In case of error, writes to the sys.stderr the message.
+
+        Returns:
+            nothing.
+        Raises:
+            nothing.
+        """
+        try:
+            self.__file.unlink()
+        except OSError as err:
+            safe_write(sys.stderr, "TemporaryFile.cleanup error: " +
+                       str(err))
+
+    @property
+    def full_path(self):
+        """Gets the full path to the file.
+
+        Returns:
+            string, which contains absolute full path to the file.
+        Raises:
+            nothing.
+        """
+        return self.__path
+
+    @property
+    def file(self):
+        """Gets a pathlib.Path object, related to the file.
+
+        Returns:
+            a pathlib.Path object.
+        Raises:
+            nothing.
+        """
+        return self.__file
+
+    @property
+    def name(self):
+        """Gets the file name.
+
+        Returns:
+            a string, which contains the file name.
+        Raises:
+            nothing.
+        """
+        return self.__name
+
+
+class TemporaryDirectoryTree(object):
+    """An object, which creates and manages a directory tree, specified in
+    constructor.
+
+    The directory is specified by the dictionary object with two keys: name and
+    subs. 'name' specifies the name of the directory tree node and 'subs' is a
+    list of similar dictionary objects (nodes of the directory tree, which are
+    children of current node).
+
+    Attributes:
+        __tree_path: a string, containing path to the tree.
+        __cleanup_list: a list of TemporaryFolder objects sorted in order for
+                        the cleanup.
+    """
+    def __init__(self, root_node, root_path=os.getcwd()):
+        self.__tree_path = os.path.abspath(root_path)
+        self.__cleanup_list = []
+
+        creation_stack = [root_node]
+        while len(creation_stack) > 0:
+            cur_node = creation_stack[0]
+
+            folder_path = os.path.join(root_path, cur_node['name'])
+            self.__cleanup_list.append(TemporaryFolder(folder_path))
+
+            for child in cur_node['subs']:
+                child_path = os.path.join(cur_node['name'], child['name'])
+                creation_stack.append(dict(name=child_path,
+                                           subs=child['subs']))
+            creation_stack.pop(0)
+
+        self.__cleanup_list.reverse()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.cleanup()
+
+    def cleanup(self):
+        """Removes the temporary directory tree from the disk.
+
+        In case of error, writes message to the sys.stderr.
+
+        Returns:
+            nothing.
+        Raises:
+            nothing.
+        """
+        try:
+            for folder in self.__cleanup_list:
+                folder.cleanup()
+            self.__cleanup_list = []
+        except (OSError, ValueError) as err:
+            safe_write(sys.stderr, "TemporaryDirectoryTree.cleanup error: " +
+                       str(err))
+
+    @property
+    def root_path(self):
+        """Gets a tree root path.
+
+        Returns:
+            a string, containing path to the root of the tree.
+        Raises:
+            nothing.
+        """
+        return self.__tree_path
+
+
+class ManagedTemporaryFolder(object):
+    """Temporary folder object, which is managed by the temporary folders
+    manager.
+
+    Should be instantiated by the manager.
+
+    Attributes:
+        __path: a string, which contains path to the folder.
+        __folder: a pathlib.Path object for the folder.
+        __manager: a manager, which has tracks the folder.
+    """
+
+    def __init__(self, path, manager):
+        self.__path = os.path.abspath(path)
+        self.__folder = Path(self.__path)
+        self.__manager = manager
+
+        if not os.path.exists(str(self.__folder.parent)):
+            manager.get_folder(str(self.__folder.parent))
+
+        if not self.__folder.exists():
+            self.__folder.mkdir()
+
+    @property
+    def absolute_path(self):
+        """Gets an absolute path to the folder.
+
+        Returns:
+            a string, which contains an absolute path to the folder.
+        Raises:
+            nothing.
+        """
+        return self.__path
+
+    @property
+    def folder(self):
+        """Gets a pathlib Path object for the folder.
+
+        Returns:
+            a pathlib Path object for the folder.
+        Raises:
+            OSError, ValueError
+        """
+        return self.__folder
+
+    @property
+    def parent(self):
+        """Gets a parent directory of the folder.
+
+        Returns:
+            a temp folder object, corresponding to the parent directory.
+        Raises:
+            nothing.
+        """
+        return self.__manager.get_folder(str(self.__folder.parent))
+
+    def create_file(self, file_name):
+        """Asks the manager to create a temporary file inside the folder.
+
+        Args:
+            file_name: the name of the created file.
+        Returns:
+            nothing.
+        Raises:
+            OSError, ValueError.
+        """
+        temp_file = self.__folder / file_name
+        self.__manager.track_file(temp_file.path)
+
+
+class TemporaryFoldersManager(object):
+    """Manager class of the temporary folders.
+
+    It is a class, which manages created folders and tracks them. When the
+    'cleanup' method is called (or the manager is been destroyed), these
+    folders are removed.
+
+    Attributes:
+        __folders: list of temp folders objects.
+        __files: list of paths to the temp files.
+    """
+
+    def __init__(self):
+        self.__folders = []
+        self.__files = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            self.cleanup()
+        except (OSError, ValueError) as err:
+            safe_write(sys.stderr, str(err))
+
+    def get_folder(self, folder_path):
+        """Gets a temporary folder object for the specified path.
+
+        If the temporary folder already exists, returns the registered object.
+        Otherwise creates the folder, registers it and returns the object.
+
+        Args:
+            folder_path: a string, which contains a path to the folder.
+        Returns:
+            a temporary folder object.
+        Raises:
+            OSError, ValueError.
+        """
+        folder_abs_path = os.path.abspath(folder_path)
+
+        for temp_folder in self.__folders:
+            if temp_folder.absolute_path.upper() == folder_abs_path.upper():
+                return temp_folder
+
+        folder = Path(folder_path)
+        if folder.exists():
+            if not folder.is_dir():
+                raise ValueError()
+            return ManagedTemporaryFolder(folder_path, self)
+
+        result = ManagedTemporaryFolder(folder_path, self)
+        self.__folders.append(result)
+
+        return result
+
+    def is_temporary(self, path):
+        """Checks if given folder or file is registered as temporary.
+
+        Args:
+            path: a string, which contains the path.
+        Returns:
+            True if the path is temporary.
+        Raises:
+            OSError.
+        """
+        folder = Path(path)
+        if not folder.exists():
+            return False
+
+        ref_paths = []
+        if folder.is_file():
+            ref_paths = [temp for temp in self.__files]
+        else:
+            ref_paths = [temp.absolute_path for temp in self.__folders]
+
+        for ref_path in ref_paths:
+            if compare_paths(ref_path, str(folder)):
+                return True
+        return False
+
+    def track_file(self, file_path):
+        """Registers the given file as temporary.
+
+        If the file doesn't exist, it will be created.
+
+        Args:
+            file_path: a string, which contains path to the file.
+        Returns:
+            nothing.
+        Raises:
+            OSError.
+        """
+        file_object = Path(file_path)
+        for temp_file in self.__files:
+            if compare_paths(str(file_object), temp_file):
+                return
+
+        self.get_folder(str(file_object.parent))
+
+        if not file_object.exists():
+            file_object.touch()
+
+        self.__files.append(str(file_object)) # adding a full absolute path
+
+    def cleanup(self):
+        """Removing all temporary folders and files.
+
+        Returns:
+            nothing.
+        Raises:
+            OSError, ValueError.
+        """
+        for temp_file_path in self.__files:
+            temp_file = Path(temp_file_path)
+            if temp_file.exists() and temp_file.is_file():
+                temp_file.unlink()
+        self.__files = []
+
+        cleanup_queue = []
+        sorting_queue = [temp for temp in self.__folders]
+        while len(sorting_queue) > 0:
+            not_parent = None
+            for i in range(0, len(sorting_queue)):
+                is_not_parent = True
+                for j in range(0, len(sorting_queue)):
+                    if i == j:
+                        continue
+                    if is_subfolder(sorting_queue[j].absolute_path,
+                                    sorting_queue[i].absolute_path):
+                        is_not_parent = False
+                        break
+                if is_not_parent:
+                    not_parent = i
+                    break
+            assert not not_parent is None
+
+            cleanup_queue.append(sorting_queue[not_parent])
+            sorting_queue.pop(not_parent)
+
+        for temp in cleanup_queue:
+            temp.folder.rmdir()
 
 
 # testing
