@@ -6,11 +6,16 @@
 # imports
 
 
+import io
 import os
 import re
 import sys
 
 from pathlib import Path
+
+from subprocess import Popen
+from subprocess import PIPE
+from subprocess import SubprocessError
 
 from .errors import EFailedToInit
 from .errors import EFileDoesntExist
@@ -20,6 +25,9 @@ from .errors import EUnknown
 from oztoolz.ioutils import compare_paths
 from oztoolz.ioutils import extract_file_name
 from oztoolz.ioutils import safe_write
+
+from oztoolz.streams import FileOutStream
+from oztoolz.streams.errors import EFailedToInitialize as EFailedToInitStream
 
 
 # API
@@ -55,6 +63,52 @@ def has_module_tests(module_path, error_stream=sys.stderr):
         safe_write(error_stream, "testfwk.utesting.has_module_tests error: " +
                    str(err) + ".\n")
     return False
+
+def run_tests_for_module(module_path, reports_folder, error_stream=sys.stderr):
+    """Runs unit tests for the given module (if the module has *_tests script)
+    and writes the report into the separate file.
+
+    Args:
+        module_path: a string, containing the path to the module to test.
+        reports_folder: a string, containing the path to the reports.
+        error_stream: a stream object to write errors to.
+    Returns:
+        nothing.
+    Raises:
+        nothing.
+    """
+    if not has_module_tests(module_path, error_stream):
+        return
+
+    try:
+        module = Path(module_path)
+        module_name = extract_file_name(module_path)[:-len(module.suffix)]
+
+        if not Path(reports_folder).exists():
+            Path(reports_folder).mkdir(0o777, True, True)
+
+        report = Path(reports_folder) / (module_name + '_tests.txt')
+        out_stream = FileOutStream(str(report))
+
+        tests_module = module.parent / (module_name + '_tests.py')
+
+        python_executable = sys.executable
+        if python_executable is None:
+            python_executable = 'python'
+
+        with Popen([python_executable, str(tests_module)],
+                   stdout=PIPE, stderr=PIPE) as proc:
+            for line in io.TextIOWrapper(proc.stdout, encoding="utf-8"):
+                out_stream.write(line)
+    except (OSError, ValueError) as err:
+        safe_write(error_stream, "testfwk run_tests_for_module error: " +
+                   str(err))
+    except EFailedToInitStream as err:
+        safe_write(error_stream, "testfwk run_tests_for_module error: " +
+                   str(err))
+    except SubprocessError:
+        safe_write(error_stream, "testfwk run_tests_for_module error: " +
+                   "failed to run the subprocess.")
 
 
 class ResourceNode(object):
