@@ -57,6 +57,11 @@ class ResourceNode(object):
         """
         raise NotImplementedError()
 
+    def children_number(self):
+        """Returns number of the children.
+        """
+        raise NotImplementedError()
+
     def load(self, file_path):
         """Loads the resource from the disc, using the path to the file.
         """
@@ -103,6 +108,11 @@ class ResourceSuit(ResourceNode):
 
         return self.__children[child_name]
 
+    def children_number(self):
+        """Returns number of the children.
+        """
+        return len(self.__children)
+
     def add_child(self, child_resource):
         """Adds the child resource to the suit.
 
@@ -137,6 +147,11 @@ class ResourceText(ResourceNode):
         return self.__text_strings
 
     def child(self, child_name):
+        """Not applicable.
+        """
+        raise NotImplementedError()
+
+    def children_number(self):
         """Not applicable.
         """
         raise NotImplementedError()
