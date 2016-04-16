@@ -13,10 +13,12 @@ if __name__ == '__main__':
     from oztoolz.ioutils import TemporaryFoldersManager
 
     from oztoolz.testfwk.utesting import ResourceText
+    from oztoolz.testfwk.utesting import ResourceManager
 else:
     from ..ioutils import TemporaryFoldersManager
 
     from .utesting import ResourceText
+    from .utesting import ResourceManager
 
 
 # test cases
@@ -91,6 +93,70 @@ class TestResourceText(unittest.TestCase):
                 resource = ResourceText.prototype().load(fake_file['path'])
 
                 self.assertTrue(resource is None)
+
+
+class TestResourcesManager(unittest.TestCase):
+    """Implements tests for the ResourceManager class.
+    """
+
+    def test_reload(self):
+        """Tests the 'reload' method of the ResourceManager class.
+        """
+        resources = [dict(path='foo/text_lines.txt', # 0 +
+                          text='lolz'),
+                     dict(path='not_resource.tmp', # 1 -
+                          text='dump'),
+                     dict(path='foo/bar/text_lines.txt', # 2 +
+                          text='double lolz'),
+                     dict(path='foo/baz/another_lines.txt', # 3 +
+                          text='triple lolz'),
+                     dict(path='foo/bar/not_resource.tmp', # 4 -
+                          text='dump')]
+
+        resources_tree = dict(name='foo',
+                              id=-1,
+                              children=[dict(name='bar',
+                                             id=-1,
+                                             children=[dict(name='text',
+                                                            id=2,
+                                                            children=[])]),
+                                        dict(name='baz',
+                                             id=-1,
+                                             children=[dict(name='another',
+                                                            id=3,
+                                                            children=[])]),
+                                        dict(name='text',
+                                             id=0,
+                                             children=[])])
+
+        with TemporaryFoldersManager() as temp_manager:
+
+            for resource in resources:
+                temp_manager.track_file(resource['path'])
+                with open(resource['path'], "w") as file_object:
+                    file_object.write(resource['text'])
+
+            res_manager = ResourceManager()
+            res_manager.reload()
+
+            nodes_to_bypass = [dict(ref=resources_tree, res=res_manager.root)]
+            while len(nodes_to_bypass) > 0:
+                cur_node = nodes_to_bypass[0]
+                nodes_to_bypass.pop(0)
+
+                child = cur_node['res'].child(cur_node['ref']['name'])
+
+                self.assertEqual(cur_node['ref']['name'],
+                                 child.name)
+
+                if cur_node['ref']['id'] < 0:
+                    self.assertEqual(len(cur_node['ref']['children']),
+                                     child.children_number())
+                    for node_child in cur_node['ref']['children']:
+                        nodes_to_bypass.append(dict(ref=node_child, res=child))
+                else:
+                    self.assertEqual(resources[cur_node['ref']['id']]['text'],
+                                     str(child))
 
 
 # testing
