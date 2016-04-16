@@ -289,13 +289,14 @@ class ResourceManager(object):
         __loader: the resource loader.
     """
 
-    def __init__(self, resources_path, resources_loader=ResourcesLoader()):
+    def __init__(self, resources_path=os.getcwd(),
+                 resources_loader=ResourcesLoader()):
         self.__root_resource = ResourceSuit("root")
         self.__loader = resources_loader
 
         self.reload(resources_path)
 
-    def reload(self, resources_path, resources_loader=None):
+    def reload(self, resources_path=os.getcwd(), resources_loader=None):
         """Loads resources from the given folder.
 
         Uses its own loader if the given one is None.
