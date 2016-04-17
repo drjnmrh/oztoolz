@@ -26,29 +26,32 @@
 # imports
 
 import os
+import importlib
 
 from pathlib import Path
 
-from ..streams import FileOutStream
-from ..streams.errors import EFailedToInitialize
+from oztoolz.streams import FileOutStream
+from oztoolz.streams.errors import EFailedToInitialize
 
-from ..ioutils import get_current_package_path
-from ..ioutils import select_all_scripts
+from oztoolz.ioutils import get_current_package_path
+from oztoolz.ioutils import select_all_scripts
 
-from .codereview import get_default_reviewer
+from oztoolz.testfwk.codereview import get_default_reviewer
 
-from .utesting import has_module_tests
-from .utesting import run_tests_for_module
+from oztoolz.testfwk.utesting import has_module_tests
+from oztoolz.testfwk.utesting import run_tests_for_module
 
-from .errors import EFailedToReview
-from .errors import EFailedToTest
-from .errors import EFileDoesntExist
+from oztoolz.testfwk.errors import EFailedToReview
+from oztoolz.testfwk.errors import EFailedToTest
+from oztoolz.testfwk.errors import EFileDoesntExist
 
-from ..streams.aligners import CenterAligner as Title
-from ..streams.aligners import RightAligner as Tab
+from oztoolz.streams.aligners import CenterAligner as Title
+from oztoolz.streams.aligners import RightAligner as Tab
 
 
-__all__ = ['review_code_and_report', 'review_current_package']
+__all__ = ['review_code_and_report',
+           'review_current_package',
+           'test_current_package']
 
 
 # API
