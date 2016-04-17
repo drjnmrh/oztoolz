@@ -12,16 +12,10 @@ import unittest
 
 from pathlib import Path
 
-if __name__ == '__main__':
-    from oztoolz.ioutils import is_subfolder
-    from oztoolz.ioutils import extract_file_name
-    from oztoolz.ioutils import TemporaryFoldersManager
-    from oztoolz.ioutils import TemporaryDirectoryTree
-else:
-    from . import is_subfolder
-    from . import extract_file_name
-    from . import TemporaryFoldersManager
-    from . import TemporaryDirectoryTree
+from oztoolz.ioutils import is_subfolder
+from oztoolz.ioutils import extract_file_name
+from oztoolz.ioutils import TemporaryFoldersManager
+from oztoolz.ioutils import TemporaryDirectoryTree
 
 
 # Test Cases
