@@ -29,6 +29,26 @@ class EUnknown(Exception):
         return self._msg
 
 
+class EFailedToInitialize(EUnknown):
+    """An exception, which is raised when the manipulator can't be initialized.
+    """
+
+    def __init__(self, manipulator_name, reason_message):
+        super().__init__("fstools error: can't initialize " +
+                         str(manipulator_name) + "- " +
+                         str(reason_message) + ".")
+
+class EFailedToManipulate(EUnknown):
+    """An exception, which is raised when the manipulator is failed to perform
+    a manipulation.
+    """
+
+    def __init__(self, manipulator_name, action_name, reason_message):
+        super().__init__("fstools error: " + str(manipulator_name) +
+                         "failed to perform " + str(action_name) +
+                         " - " + str(reason_message) + ".")
+
+
 class EPathDoesntExist(EUnknown):
     """An exception, which is raised when the specified path doesn't exist.
     """
