@@ -11,18 +11,11 @@ import os
 import sys
 import unittest
 
-if __name__ == '__main__':
-    from oztoolz.ioutils import TemporaryFoldersManager
+from oztoolz.ioutils import TemporaryFoldersManager
 
-    from oztoolz.testfwk.utesting import has_module_tests
-    from oztoolz.testfwk.utesting import ResourceText
-    from oztoolz.testfwk.utesting import ResourceManager
-else:
-    from ...ioutils import TemporaryFoldersManager
-
-    from . import has_module_tests
-    from . import ResourceText
-    from . import ResourceManager
+from oztoolz.testfwk.utesting import has_module_tests
+from oztoolz.testfwk.utesting import ResourceText
+from oztoolz.testfwk.utesting import ResourceManager
 
 
 # test cases
