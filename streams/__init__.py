@@ -129,6 +129,18 @@ class OutputStream(object):
         self.write(string)
 
 
+class DummyOutStream(OutputStream):
+    """An output stream, which doesn't write anything.
+    """
+    def __init__(self):
+        super().__init__()
+
+    def _write(self, string):
+        """Does nothing.
+        """
+        return string
+
+
 class StdoutStream(OutputStream):
     """An output stream, which writes characters to the stdout.
     """
