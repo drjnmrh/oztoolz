@@ -23,9 +23,11 @@ from .errors import EFileDoesntExist
 from .errors import ENoSuchChild
 from .errors import EUnknown
 
+from oztoolz.ioutils import has_attribute
 from oztoolz.ioutils import compare_paths
 from oztoolz.ioutils import extract_file_name
 from oztoolz.ioutils import safe_write
+from oztoolz.ioutils import TemporaryFile
 
 from oztoolz.streams import FileOutStream
 from oztoolz.streams.errors import EFailedToInitialize as EFailedToInitStream
@@ -71,6 +73,9 @@ def run_tests_for_module(module_path, reports_folder, error_stream=sys.stderr):
     """Runs unit tests for the given module (if the module has *.tests script)
     and writes the report into the separate file.
 
+    If the module has 'main' method, the module is executed by itself, otherwise
+    'python -m unittest' is used.
+
     Args:
         module_path: a string, containing the path to the module to test.
         reports_folder: a string, containing the path to the reports.
@@ -90,8 +95,7 @@ def run_tests_for_module(module_path, reports_folder, error_stream=sys.stderr):
         module = Path(module_path)
         module_name = extract_file_name(module_path)[:-len(module.suffix)]
 
-        if not Path(reports_folder).exists():
-            Path(reports_folder).mkdir(0o777, True, True)
+        Path(reports_folder).mkdir(0o777, True, True)
 
         report = Path(reports_folder) / (module_name + '.py_tests.txt')
         out_stream = FileOutStream(str(report))
@@ -117,15 +121,26 @@ def run_tests_for_module(module_path, reports_folder, error_stream=sys.stderr):
 
         out_stream.append("")
 
-        with Popen([python_executable, str(tests_module)],
-                   stdout=PIPE, stderr=PIPE) as proc:
-            out_stream.append("stdout:\n")
-            for line in io.TextIOWrapper(proc.stdout, encoding="utf-8"):
-                out_stream.write(line)
+        temp_module = module.parent / (module_name + '_tests.py')
+        with TemporaryFile.from_path(temp_module) as temp:
+            temp.fill(str(tests_module))
 
-            out_stream.append("stderr:\n")
-            for line in io.TextIOWrapper(proc.stderr, encoding="utf-8"):
-                out_stream.write(line)
+            params = [python_executable, str(temp_module)]
+            if has_attribute(str(tests_module), 'main'):
+                out_stream.append(Tab("# the 'main' method was found;"))
+            else:
+                out_stream.append(Tab("# the 'main' method wasn't found;"))
+                params = [python_executable, '-m', 'unittest', str(temp_module)]
+
+            out_stream.append(Tab("# running with params " + str(params) + ";"))
+            with Popen(params, stdout=PIPE, stderr=PIPE) as proc:
+                out_stream.append("stdout:\n")
+                for line in io.TextIOWrapper(proc.stdout, encoding="utf-8"):
+                    out_stream.write(line)
+
+                out_stream.append("stderr:\n")
+                for line in io.TextIOWrapper(proc.stderr, encoding="utf-8"):
+                    out_stream.write(line)
     except (OSError, ValueError) as err:
         safe_write(error_stream, "testfwk run_tests_for_module error: " +
                    str(err))
