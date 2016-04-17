@@ -13,7 +13,8 @@ import sys
 from pathlib import Path
 
 
-__all__ = ['compare_paths',
+__all__ = ['has_attribute',
+           'compare_paths',
            'is_subfolder',
            'extract_file_name',
            'get_current_package_path',
@@ -27,6 +28,66 @@ __all__ = ['compare_paths',
 
 
 # methods
+
+
+class TemporaryPathsEntry(object):
+    """Temporary entry to the sys.paths variable.
+    """
+
+    def __init__(self, entry_value):
+        self.__entry_value = entry_value
+
+    def __str__(self):
+        return self.__entry_value
+
+    def __enter__(self):
+        sys.path.insert(0, self.__entry_value)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        for i in range(0, len(sys.path)):
+            if sys.path[i] == self.__entry_value:
+                sys.path.pop(i)
+                return
+
+    @property
+    def value(self):
+        """Gets entry value.
+        """
+        return self.__entry_value
+
+    def is_already_in_paths(self):
+        """Returns True if the entry is already in the sys.path list.
+        """
+        for path in sys.path:
+            if path == self.value:
+                return True
+        return False
+
+
+def has_attribute(module_path, attribute):
+    """Checks if the given module has a specific attribute.
+
+    Args:
+        module_path: a string, containing path to the module.
+        attribute: an attribute to check.
+    Returns:
+        True if there's such attribute, False otherwise.
+    Raises:
+        OSError, ValueError.
+    """
+    module = Path(module_path)
+    parent = module.parent
+    with TemporaryFile.from_path(str(parent / "temp_module.py")) as temp:
+        temp.fill(module_path)
+        module_name = "temp_module"
+        with TemporaryPathsEntry(str(parent)) as paths_entry:
+            try:
+                __import__(module_name)
+                return hasattr(sys.modules[module_name], attribute)
+            except ImportError as err:
+                raise ValueError("failed to import from " + str(paths_entry) +
+                                 " module " + module_name + " - " + str(err))
 
 
 def compare_paths(first, second):
