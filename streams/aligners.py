@@ -4,6 +4,33 @@
 """
 
 
+class AutoAligner(object):
+    """RAII class, which push aligner into the stream and pops it at exit.
+    """
+    def __init__(self, out_stream, aligner):
+        self.__out_stream = out_stream
+        self.__aligner = aligner
+
+    def __enter__(self):
+        self.__out_stream.push_aligner(self.__aligner)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.__out_stream.pop_aligner()
+
+    @property
+    def stream(self):
+        """Gets the aligned stream.
+        """
+        return self.__out_stream
+
+    @property
+    def aligner(self):
+        """Gets the aligner.
+        """
+        return self.__aligner
+
+
 class BaseAligner(object):
     """Base class for the aligners.
 
