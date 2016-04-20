@@ -651,6 +651,26 @@ class TemporaryFoldersManager(object):
         except (OSError, ValueError) as err:
             safe_write(sys.stderr, str(err))
 
+    @staticmethod
+    def from_list(paths):
+        """Creates temporary folders manager from the list of entries with
+        'path' and 'isdir' keys.
+
+        Args:
+            paths: list of dicts with 'path' and 'isdir' keys.
+        Returns:
+            a temporary folders manager.
+        Raises:
+            OSError, ValueError.
+        """
+        temp_manager = TemporaryFoldersManager()
+        for path in paths:
+            if path['isdir']:
+                temp_manager.get_folder(path['path'])
+            else:
+                temp_manager.track_file(path['path'])
+        return temp_manager
+
     def set_force_remove(self, force_remove=True):
         """Sets the force_remove flag.
 
