@@ -9,6 +9,7 @@
 
 import os
 import sys
+import shutil
 
 from pathlib import Path
 
@@ -639,15 +640,28 @@ class TemporaryFoldersManager(object):
     def __init__(self):
         self.__folders = []
         self.__files = []
+        self.__force_remove = False
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         try:
-            self.cleanup()
+            self.cleanup(self.__force_remove)
         except (OSError, ValueError) as err:
             safe_write(sys.stderr, str(err))
+
+    def set_force_remove(self, force_remove=True):
+        """Sets the force_remove flag.
+
+        Args:
+            force_remove: new value of the flag.
+        Returns:
+            nothing.
+        Raises:
+            nothing.
+        """
+        self.__force_remove = force_remove
 
     def get_folder(self, folder_path):
         """Gets a temporary folder object for the specified path.
@@ -728,9 +742,12 @@ class TemporaryFoldersManager(object):
 
         self.__files.append(str(file_object)) # adding a full absolute path
 
-    def cleanup(self):
+    def cleanup(self, force_remove=False):
         """Removing all temporary folders and files.
 
+        Args:
+            force_remove: determines if non-registered subfolders should be
+                          removed.
         Returns:
             nothing.
         Raises:
@@ -764,7 +781,10 @@ class TemporaryFoldersManager(object):
             sorting_queue.pop(not_parent)
 
         for temp in cleanup_queue:
-            temp.folder.rmdir()
+            if not force_remove:
+                temp.folder.rmdir()
+            else:
+                shutil.rmtree(temp.absolute_path)
 
 
 # testing

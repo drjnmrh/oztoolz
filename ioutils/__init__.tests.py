@@ -123,6 +123,28 @@ class TestTemporaryFoldersManager(unittest.TestCase):
         for path in paths:
             self.assertFalse(os.path.exists(path))
 
+    def test_force_remove(self):
+        """Tests force remove behavior.
+        """
+        paths = ['root', 'root/foo/bar']
+        non_registered = [dict(path="root/temp.tmp", isdir=False),
+                          dict(path="root/foo/bar/baz", isdir=True),
+                          dict(path="root/bar/baz/temp.tmp", isdir=False)]
+        with TemporaryFoldersManager() as temp_manager:
+            for path in paths:
+                temp_manager.get_folder(path)
+            for path in non_registered:
+                if path['isdir']:
+                    Path(path['path']).mkdir(0o777, True, True)
+                else:
+                    if not Path(str(Path(path['path']).parent)).exists():
+                        Path(str(Path(path['path']).parent)).mkdir(0o777,
+                                                                   True, True)
+                    Path(path['path']).touch(0o777, True)
+            temp_manager.set_force_remove()
+        for path in non_registered:
+            self.assertFalse(Path(path['path']).exists())
+
     def test_is_temporary(self):
         """Tests 'is_temporary' method.
 
