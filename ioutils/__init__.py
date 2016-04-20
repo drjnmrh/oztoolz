@@ -652,12 +652,13 @@ class TemporaryFoldersManager(object):
             safe_write(sys.stderr, str(err))
 
     @staticmethod
-    def from_list(paths):
+    def from_list(paths, force_remove=False):
         """Creates temporary folders manager from the list of entries with
         'path' and 'isdir' keys.
 
         Args:
             paths: list of dicts with 'path' and 'isdir' keys.
+            force_remove: value of the force_remove of newly created manager.
         Returns:
             a temporary folders manager.
         Raises:
@@ -669,6 +670,7 @@ class TemporaryFoldersManager(object):
                 temp_manager.get_folder(path['path'])
             else:
                 temp_manager.track_file(path['path'])
+        temp_manager.set_force_remove(force_remove)
         return temp_manager
 
     def set_force_remove(self, force_remove=True):
