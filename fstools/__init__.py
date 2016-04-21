@@ -36,8 +36,6 @@ __all__ = ['PathManipulator',
 # API
 
 
-
-
 def _safe_append(log_stream, message_object):
     """Appends the message to the log stream, without raising exceptions.
     """
@@ -48,11 +46,7 @@ def _safe_append(log_stream, message_object):
                    " - " + str(error))
 
 
-
-
 # classes
-
-
 
 
 class PathManipulator:
@@ -72,7 +66,7 @@ class PathManipulator:
 
     def __init__(self, path, manipulator_name="Path Manipulator"):
         try:
-            self.__path_obj = Path(str(path))
+            self.__path_obj = Path(os.path.abspath(str(path)))
             if not self.__path_obj.exists():
                 raise EPathDoesntExist(str(self.__path_obj))
             self.__norm_path = os.path.abspath(str(path)).lower()
@@ -94,8 +88,6 @@ class PathManipulator:
 
         Returns:
             a string, containing normalized path.
-        Raises:
-            nothing.
         """
         return self.__norm_path
 
@@ -105,8 +97,6 @@ class PathManipulator:
 
         Returns:
             a string, containing the name of the manipulator.
-        Raises:
-            nothing.
         """
         return self.__name
 
@@ -116,8 +106,6 @@ class PathManipulator:
 
         Returns:
             a pathlib.Path object.
-        Raises:
-            nothing.
         """
         return self.__path_obj
 
@@ -277,7 +265,7 @@ class FileManipulator(PathManipulator):
             EFailedToInitialize.
         """
         try:
-            path_object = Path(str(path))
+            path_object = Path(os.path.abspath(str(path)))
             parent_path = Path(str(path_object.parent))
             if not parent_path.exists() and not force_create:
                 raise EFailedToInitialize("File Manipulator",
@@ -285,6 +273,8 @@ class FileManipulator(PathManipulator):
                                           str(parent_path) + "]")
             elif not parent_path.exists():
                 parent_path.mkdir(0o777, True, True)
+            if not path_object.exists():
+                path_object.touch()
             return FileManipulator(path)
         except (OSError, ValueError) as err:
             raise EFailedToInitialize("File Manipulator", str(err))
@@ -303,7 +293,7 @@ class FileManipulator(PathManipulator):
             EFailedToInitialize.
         """
         try:
-            path_object = Path(str(path))
+            path_object = Path(os.path.abspath(str(path)))
             parent_path = Path(str(path_object.parent))
             if not parent_path.exists():
                 raise EFailedToInitialize("File Manipulator",
@@ -326,8 +316,6 @@ class FileManipulator(PathManipulator):
 
         Returns:
             True if the file is temporary.
-        Raises:
-            nothing.
         """
         return self.__is_temporary
 
@@ -374,16 +362,21 @@ class FileManipulator(PathManipulator):
                                       " doesn't exist anymore")
         try:
             _safe_append(log_stream,
-                         "coping " + self.target + " to " + str(destination) +
+                         "coping " + self.target() + " to " + str(destination) +
                          "...")
-
-            if os.path.exists(str(destination)) and not overwrite:
-                raise EFailedToManipulate(self.name, "copy", str(destination) +
+            dest_obj = Path(os.path.abspath(str(destination))) / self.target()
+            if dest_obj.exists() and not overwrite:
+                safe_write(log_stream, "Failed")
+                raise EFailedToManipulate(self.name, "copy", str(dest_obj) +
                                           " already exists")
-            shutil.copy(str(self), str(destination))
+
+            try:
+                shutil.copy(str(self), str(destination))
+            except shutil.SameFileError:
+                pass
 
             safe_write(log_stream, "Ok")
-            return FileManipulator(destination)
+            return FileManipulator(dest_obj)
         except (OSError, ValueError, EFailedToInitialize) as err:
             raise EFailedToManipulate(self.name, "copy", str(err))
 
@@ -408,12 +401,17 @@ class FileManipulator(PathManipulator):
 
         try:
             _safe_append(log_stream,
-                         "moving " + self.target + " to " + str(destination) +
+                         "moving " + self.target() + " to " + str(destination) +
                          "...")
 
             if os.path.exists(str(destination)):
+                safe_write(log_stream, "Failed")
                 raise EFailedToManipulate(self.name, "move", "destination " +
                                           str(destination) + " already exists")
+
+            parent = Path(str(Path(destination).parent))
+            if not parent.exists():
+                parent.mkdir(0o777, True, True)
 
             shutil.move(str(self), str(destination))
             self.reset(destination)
@@ -441,7 +439,7 @@ class FileManipulator(PathManipulator):
                                       " doesn't exist anymore")
         try:
             _safe_append(log_stream,
-                         "removing " + self.target + "...")
+                         "removing " + self.target() + "...")
 
             self.path.unlink()
 
@@ -470,9 +468,9 @@ class FileManipulator(PathManipulator):
             EFailedToManipulate.
         """
         try:
-            if self.target().rfind('.') == -1:
+            if self.target().find('.') == -1:
                 return self.target()
-            return self.target()[:self.target().rfind('.')]
+            return self.target()[:self.target().find('.')]
         except (ValueError, IndexError) as err:
             raise EFailedToManipulate(self.name, "pure_name", str(err))
 
@@ -594,8 +592,6 @@ class FolderManipulator(PathManipulator):
 
         Returns:
             True if the folder is temporary, False otherwise.
-        Raises:
-            nothing.
         """
         return self.__is_temporary
 
@@ -643,7 +639,7 @@ class FolderManipulator(PathManipulator):
                                       " doesn't exist anymore")
         try:
             _safe_append(log_stream,
-                         "coping " + self.target + " to " + str(destination) +
+                         "coping " + self.target() + " to " + str(destination) +
                          "...")
 
             dir_copy = FolderManipulator.create(os.path.join(destination,
@@ -684,7 +680,7 @@ class FolderManipulator(PathManipulator):
 
         try:
             _safe_append(log_stream,
-                         "moving " + self.target + " to " + str(destination) +
+                         "moving " + self.target() + " to " + str(destination) +
                          "...")
 
             if os.path.exists(str(destination)):
@@ -727,7 +723,7 @@ class FolderManipulator(PathManipulator):
                                       " doesn't exist anymore")
         try:
             _safe_append(log_stream,
-                         "removing " + self.target + "...")
+                         "removing " + self.target() + "...")
 
             with Scope(log_stream, Tab("")) as scope:
                 content = self.list()
