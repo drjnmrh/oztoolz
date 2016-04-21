@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """
     Defines file system and data manipulator classes.
         Author: O.Z.
@@ -12,6 +13,7 @@ import shutil
 from pathlib import Path
 
 from oztoolz.ioutils import safe_write
+from oztoolz.ioutils import compare_paths
 
 from oztoolz.streams import DummyOutStream
 
@@ -110,6 +112,18 @@ class PathManipulator:
         return self.__path_obj
 
     # public API
+
+    def is_same(self, another_path):
+        """Checks if the path is the same path, as specfied.
+
+        Args:
+            another_path: a string, containing the path to compare to.
+        Returns:
+            True if the paths are same.
+        Raises:
+            EFailedToManipulate.
+        """
+        return compare_paths(str(self), str(another_path))
 
     def exists(self):
         """Checks if the path exists.
@@ -642,14 +656,18 @@ class FolderManipulator(PathManipulator):
                          "coping " + self.target() + " to " + str(destination) +
                          "...")
 
-            dir_copy = FolderManipulator.create(os.path.join(destination,
-                                                             self.target),
-                                                True)
+            full_dst_path = os.path.abspath(os.path.join(str(destination),
+                                                         self.target()))
+            if os.path.exists(full_dst_path) and not overwrite:
+                raise EFailedToManipulate(self.name, "copy", full_dst_path +
+                                          " already exists")
+
+            dir_copy = FolderManipulator.create(full_dst_path, True)
 
             with Scope(log_stream, Tab("")) as scope:
                 content = self.list()
                 for path in content:
-                    path.copy(dir_copy.normalized_path, scope.stream)
+                    path.copy(dir_copy.normalized_path, overwrite, scope.stream)
 
                 if len(content) > 0:
                     _safe_append(scope.stream, "")
@@ -691,7 +709,7 @@ class FolderManipulator(PathManipulator):
                 with Scope(log_stream, Tab("")) as scope:
                     content = self.list()
                     for path in content:
-                        path.move(os.path.join(str(moved), path.target),
+                        path.move(os.path.join(str(moved), path.target()),
                                   scope.stream)
 
                     if len(content) > 0:
@@ -733,7 +751,7 @@ class FolderManipulator(PathManipulator):
                 if len(content) > 0:
                     _safe_append(scope.stream, "")
 
-            self.remove()
+            self.path.rmdir()
 
             safe_write(log_stream, "Ok")
         except (OSError, ValueError) as err:
@@ -760,12 +778,15 @@ class FolderManipulator(PathManipulator):
             EFailedToManipulate.
         """
         try:
-            return len(self.path.iterdir()) == 0
+            return len(list(self.path.iterdir())) == 0
         except (OSError, ValueError) as err:
             raise EFailedToManipulate(self.name, "is_empty", str(err))
 
     def list(self, log_stream=DummyOutStream()):
         """Gets a list of directories and files inside the folder.
+
+        First in the result list a folder manipulators (sorted by the name),
+        than the file manipulators (also sorted by the name).
 
         Args:
             log_stream: a stream to log to.
@@ -788,6 +809,10 @@ class FolderManipulator(PathManipulator):
                 else:
                     files.append(FileManipulator(str(child)))
 
+            directories = sorted(directories,
+                                 key=lambda man: str(man.target()).lower())
+            files = sorted(files,
+                           key=lambda man: str(man.target()).lower())
             children = []
             with Scope(log_stream, Tab("")) as scope:
                 for manipulator in directories:
@@ -823,7 +848,9 @@ class FolderManipulator(PathManipulator):
             pat = "**/" + pat
 
         try:
-            return [FileManipulator(it) for it in list(self.path.glob(pat))]
+            glob = self.path.glob(pat)
+            return sorted([FileManipulator(it) for it in list(glob)],
+                          key=lambda man: str(man).lower())
         except (OSError, ValueError, EFailedToInitialize) as err:
             raise EFailedToManipulate(self.name, "files", str(err))
 
