@@ -55,7 +55,7 @@ class OutputStream(object):
 
         aligned_string = string
         for aligner in self.__aligners_stack:
-            aligned_string = aligner.prototype(aligned_string)
+            aligned_string = str(aligner.prototype(aligned_string))
 
         return aligned_string
 
@@ -111,9 +111,9 @@ class OutputStream(object):
         Raises:
             depends on what exceptions are risen by the overriden _write method.
         """
-        self._write(self.__apply_aligners(string))
+        self._write(self.__apply_aligners(str(string)))
 
-        self.__last_string = string
+        self.__last_string = str(string)
 
     def append(self, string):
         """Appends the passed string as a new line to the buffer.
