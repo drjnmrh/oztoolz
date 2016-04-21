@@ -110,10 +110,10 @@ def compare_paths(first, second):
     try:
         abs_first = os.path.abspath(str(first))
         abs_second = os.path.abspath(str(second))
-        return abs_first.upper() == abs_second.upper()
+        return abs_first.lower() == abs_second.lower()
     except (OSError, ValueError) as err:
         safe_write(sys.stderr, "ioutils.compare_paths error: " + str(err))
-    return str(first).upper() == str(second).upper()
+    return str(first).lower() == str(second).lower()
 
 
 def is_subfolder(subfolder_path, parent_path):
@@ -754,7 +754,7 @@ class TemporaryFoldersManager(object):
         """
         file_object = Path(file_path)
         for temp_file in self.__files:
-            if compare_paths(str(file_object), temp_file):
+            if compare_paths(file_path, temp_file):
                 return
 
         self.get_folder(str(file_object.parent))
@@ -762,7 +762,7 @@ class TemporaryFoldersManager(object):
         if not file_object.exists():
             file_object.touch()
 
-        self.__files.append(str(file_object)) # adding a full absolute path
+        self.__files.append(os.path.abspath(file_path))
 
     def cleanup(self, force_remove=False):
         """Removing all temporary folders and files.
