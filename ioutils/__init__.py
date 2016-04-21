@@ -782,16 +782,16 @@ class TemporaryFoldersManager(object):
         self.__files = []
 
         cleanup_queue = []
-        sorting_queue = [temp for temp in self.__folders]
-        while len(sorting_queue) > 0:
+        sorting = [temp for temp in self.__folders if temp.folder.exists()]
+        while len(sorting) > 0:
             not_parent = None
-            for i in range(0, len(sorting_queue)):
+            for i in range(0, len(sorting)):
                 is_not_parent = True
-                for j in range(0, len(sorting_queue)):
+                for j in range(0, len(sorting)):
                     if i == j:
                         continue
-                    if is_subfolder(sorting_queue[j].absolute_path,
-                                    sorting_queue[i].absolute_path):
+                    if is_subfolder(sorting[j].absolute_path,
+                                    sorting[i].absolute_path):
                         is_not_parent = False
                         break
                 if is_not_parent:
@@ -799,8 +799,8 @@ class TemporaryFoldersManager(object):
                     break
             assert not not_parent is None
 
-            cleanup_queue.append(sorting_queue[not_parent])
-            sorting_queue.pop(not_parent)
+            cleanup_queue.append(sorting[not_parent])
+            sorting.pop(not_parent)
 
         for temp in cleanup_queue:
             if not force_remove:
